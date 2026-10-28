@@ -1,10 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 
-#define SIZE 100
+#include <stdio.h>   // Input and output functions
+#include <stdlib.h>  // malloc(), free(), atoi()
+#include <string.h>  // String handling functions
+#include <ctype.h>   // tolower()
 
+#define SIZE 100     // Maximum size of text fields
+
+// Structure to store lost and found item details
 typedef struct Item {
     int id;
     char name[SIZE];
@@ -13,49 +15,60 @@ typedef struct Item {
     char description[SIZE];
     char location[SIZE];
     char date[SIZE];
-    int returned;
-    struct Item *next;
+    int returned;           // 0 = Available, 1 = Returned
+    struct Item *next;      // Link to the next item
 } Item;
 
+// Structure to store a potential match
 typedef struct Match {
-    Item *lost;
-    Item *found;
-    int score;
+    Item *lost;             // Pointer to lost item
+    Item *found;            // Pointer to found item
+    int score;              // Matching percentage
     struct Match *next;
 } Match;
 
+// Structure to store a claim
 typedef struct Claim {
-    int foundID;
-    char claimant[SIZE];
+    int foundID;            // ID of the claimed item
+    char claimant[SIZE];    // Name of the person claiming it
     struct Claim *next;
 } Claim;
 
+// Head pointers for lost and found item linked lists
 Item *lostHead = NULL;
 Item *foundHead = NULL;
 
+// Head pointer for matches arranged by score
 Match *priorityHead = NULL;
 
+// Front and rear pointers for the claims queue
 Claim *queueFront = NULL;
 Claim *queueRear = NULL;
 
+// Starting ID for newly registered items
 int nextID = 101;
 
+// Remove the newline character from user input
 void removeNewline(char *str) {
     str[strcspn(str, "\n")] = '\0';
 }
 
+// Read a string from the user
 void readString(char *message, char *value) {
     printf("%s", message);
+
     if (fgets(value, SIZE, stdin) != NULL)
         removeNewline(value);
 }
 
+// Read a number entered by the user
 int readNumber(char *message) {
     char input[SIZE];
     readString(message, input);
     return atoi(input);
 }
 
+// Compare two strings without considering letter case
 int sameText(char *a, char *b) {
     while (*a && *b) {
         if (tolower((unsigned char)*a) !=
@@ -69,6 +82,7 @@ int sameText(char *a, char *b) {
     return *a == '\0' && *b == '\0';
 }
 
+// Find an item using its ID in a linked list
 Item *findItem(Item *head, int id) {
     Item *temp = head;
 
@@ -82,14 +96,17 @@ Item *findItem(Item *head, int id) {
     return NULL;
 }
 
+// Insert an item at the end of a linked list
 void insertItem(Item **head, Item *item) {
     item->next = NULL;
 
+    // If the list is empty, make this the first item
     if (*head == NULL) {
         *head = item;
         return;
     }
 
+    // Traverse to the last node
     Item *temp = *head;
 
     while (temp->next != NULL)
@@ -98,6 +115,7 @@ void insertItem(Item **head, Item *item) {
     temp->next = item;
 }
 
+// Display all details of an item
 void displayItem(Item *item) {
     printf("\nItem ID      : %d", item->id);
     printf("\nName         : %s", item->name);
@@ -106,11 +124,14 @@ void displayItem(Item *item) {
     printf("\nDescription  : %s", item->description);
     printf("\nLocation     : %s", item->location);
     printf("\nDate         : %s", item->date);
+
     printf("\nStatus       : %s\n",
            item->returned ? "Returned" : "Available");
 }
 
+// Register a new lost or found item
 void registerItem(int isLost) {
+    // Allocate memory dynamically for a new item
     Item *item = malloc(sizeof(Item));
 
     if (item == NULL) {
@@ -124,6 +145,7 @@ void registerItem(int isLost) {
     printf("\n--- Register %s Item ---\n",
            isLost ? "Lost" : "Found");
 
+    // Collect item details
     readString("Enter item name: ", item->name);
     readString("Enter category: ", item->category);
     readString("Enter colour: ", item->color);
@@ -131,6 +153,7 @@ void registerItem(int isLost) {
     readString("Enter location: ", item->location);
     readString("Enter date (DD-MM-YYYY): ", item->date);
 
+    // Store the item in the appropriate linked list
     if (isLost)
         insertItem(&lostHead, item);
     else
@@ -140,6 +163,7 @@ void registerItem(int isLost) {
     printf("\nGenerated Item ID: %d\n", item->id);
 }
 
+// Display every item in a given linked list
 void displayItems(Item *head, char *title) {
     Item *temp = head;
 
@@ -150,15 +174,18 @@ void displayItems(Item *head, char *title) {
         return;
     }
 
+    // Traverse the list and display each item
     while (temp != NULL) {
         displayItem(temp);
         temp = temp->next;
     }
 }
 
+// Calculate a matching score between lost and found items
 int calculateScore(Item *lost, Item *found) {
     int score = 0;
 
+    // Each matching field contributes to the total score
     if (sameText(lost->name, found->name))
         score += 30;
 
@@ -177,7 +204,9 @@ int calculateScore(Item *lost, Item *found) {
     return score;
 }
 
+// Insert a match in descending order of matching score
 void insertPriority(Match *match) {
+    // Insert at the beginning if the score is highest
     if (priorityHead == NULL ||
         match->score > priorityHead->score) {
         match->next = priorityHead;
@@ -187,6 +216,7 @@ void insertPriority(Match *match) {
 
     Match *temp = priorityHead;
 
+    // Find the correct position for the new match
     while (temp->next != NULL &&
            temp->next->score >= match->score) {
         temp = temp->next;
@@ -196,6 +226,7 @@ void insertPriority(Match *match) {
     temp->next = match;
 }
 
+// Free all match nodes and reset the priority list
 void clearMatches(void) {
     Match *temp;
 
@@ -206,22 +237,27 @@ void clearMatches(void) {
     }
 }
 
+// Compare all available lost items with found items
 void findMatches(void) {
     Item *lost = lostHead;
     Item *found;
     Match *match;
     int count = 0;
 
+    // Remove old results before generating new matches
     clearMatches();
 
+    // Visit each lost item
     while (lost != NULL) {
         if (!lost->returned) {
             found = foundHead;
 
+            // Compare it with every found item
             while (found != NULL) {
                 if (!found->returned) {
                     int score = calculateScore(lost, found);
 
+                    // Save pairs having at least one matching field
                     if (score > 0) {
                         match = malloc(sizeof(Match));
 
@@ -236,6 +272,7 @@ void findMatches(void) {
                         match->score = score;
                         match->next = NULL;
 
+                        // Keep results sorted by score
                         insertPriority(match);
                     }
                 }
@@ -256,6 +293,7 @@ void findMatches(void) {
         return;
     }
 
+    // Display matches from highest score to lowest
     while (match != NULL) {
         printf("\nMatching Score: %d%%\n", match->score);
 
@@ -275,6 +313,7 @@ void findMatches(void) {
 
         printf("\nLocation: %s\n", match->found->location);
 
+        // Classify the match based on its score
         if (match->score >= 70)
             printf("Result: Strong potential match\n");
         else if (match->score >= 40)
@@ -291,6 +330,7 @@ void findMatches(void) {
     printf("\nTotal potential matches: %d\n", count);
 }
 
+// Search lost and found items by name or category
 void searchItems(void) {
     char key[SIZE];
     Item *temp;
@@ -311,6 +351,7 @@ void searchItems(void) {
 
     printf("\n========== SEARCH RESULTS ==========\n");
 
+    // Search the lost items list
     temp = lostHead;
 
     while (temp != NULL) {
@@ -327,6 +368,7 @@ void searchItems(void) {
         temp = temp->next;
     }
 
+    // Search the found items list
     temp = foundHead;
 
     while (temp != NULL) {
@@ -347,6 +389,7 @@ void searchItems(void) {
         printf("No matching items found.\n");
 }
 
+// Add a claim to the rear of the queue
 void enqueueClaim(int id, char *name) {
     Claim *claim = malloc(sizeof(Claim));
 
@@ -359,14 +402,17 @@ void enqueueClaim(int id, char *name) {
     strcpy(claim->claimant, name);
     claim->next = NULL;
 
+    // Initialize both pointers for the first claim
     if (queueRear == NULL) {
         queueFront = queueRear = claim;
     } else {
+        // Attach the new claim at the rear
         queueRear->next = claim;
         queueRear = claim;
     }
 }
 
+// Accept a claim for an available found item
 void submitClaim(void) {
     int id;
     Item *item;
@@ -374,6 +420,7 @@ void submitClaim(void) {
 
     id = readNumber("Enter found item ID: ");
 
+    // Check whether the entered ID exists
     item = findItem(foundHead, id);
 
     if (item == NULL) {
@@ -381,6 +428,7 @@ void submitClaim(void) {
         return;
     }
 
+    // Do not accept claims for returned items
     if (item->returned) {
         printf("This item has already been returned.\n");
         return;
@@ -388,11 +436,13 @@ void submitClaim(void) {
 
     readString("Enter claimant name: ", name);
 
+    // Add the claim to the queue
     enqueueClaim(id, name);
 
     printf("\nClaim added to the queue successfully.\n");
 }
 
+// Process claims in First-In, First-Out order
 void processClaims(void) {
     Claim *claim;
     Item *item;
@@ -402,10 +452,12 @@ void processClaims(void) {
         return;
     }
 
+    // Process claims starting from the front
     while (queueFront != NULL) {
         claim = queueFront;
         queueFront = queueFront->next;
 
+        // Reset rear when the queue becomes empty
         if (queueFront == NULL)
             queueRear = NULL;
 
@@ -418,8 +470,10 @@ void processClaims(void) {
         if (item == NULL) {
             printf("\nClaim failed: Item not found.\n");
         } else if (item->returned) {
+            // Reject a later claim for an already returned item
             printf("\nClaim rejected: Item already returned.\n");
         } else {
+            // Mark the item as returned after processing
             item->returned = 1;
             printf("\nClaim processed successfully.");
             printf("\nItem marked as returned.\n");
@@ -427,12 +481,15 @@ void processClaims(void) {
 
         printf("--------------------------------------\n");
 
+        // Free the processed claim node
         free(claim);
     }
 
+    // Remove old matching results after claim processing
     clearMatches();
 }
 
+// Display all items that have been returned
 void displayReturnedItems(void) {
     Item *temp = foundHead;
     int count = 0;
@@ -452,6 +509,7 @@ void displayReturnedItems(void) {
         printf("No items have been returned yet.\n");
 }
 
+// Display claims waiting in the queue
 void displayPendingClaims(void) {
     Claim *temp = queueFront;
 
@@ -462,6 +520,7 @@ void displayPendingClaims(void) {
         return;
     }
 
+    // Traverse the queue without removing claims
     while (temp != NULL) {
         printf("\nClaimant: %s", temp->claimant);
         printf("\nFound Item ID: %d\n", temp->foundID);
@@ -470,6 +529,7 @@ void displayPendingClaims(void) {
     }
 }
 
+// Free all nodes in an item linked list
 void freeItems(Item *head) {
     Item *temp;
 
@@ -480,6 +540,7 @@ void freeItems(Item *head) {
     }
 }
 
+// Free any remaining claims in the queue
 void freeClaims(void) {
     Claim *temp;
 
@@ -492,9 +553,11 @@ void freeClaims(void) {
     queueRear = NULL;
 }
 
+// Main function: display menu and handle user choices
 int main(void) {
     int choice;
 
+    // Repeat until the user chooses Exit
     do {
         printf("\n\n");
         printf("========================================\n");
@@ -515,6 +578,7 @@ int main(void) {
 
         choice = readNumber("Enter your choice: ");
 
+        // Call the selected operation
         switch (choice) {
             case 1:
                 registerItem(1);
@@ -566,6 +630,7 @@ int main(void) {
 
     } while (choice != 0);
 
+    // Release dynamically allocated memory before exiting
     freeItems(lostHead);
     freeItems(foundHead);
     clearMatches();

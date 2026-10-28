@@ -1,0 +1,13 @@
+
+# Compiled executables
+*.exe
+*.out
+lost_found
+
+# Editor files
+.vscode/
+.idea/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
